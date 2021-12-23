@@ -38,7 +38,9 @@ void Menu::openGenerateKeysWindow(){
 ***********************************************************************/
     KeyGeneration *keyGenerationWindow = new KeyGeneration();
     keyGenerationWindow->show();
-    this->close();
+    //destruct the current window to prevent memory leaks
+    this->~Menu();
+
 }
 
 void Menu::openEncryptionWindow(){
@@ -48,7 +50,8 @@ void Menu::openEncryptionWindow(){
 ***********************************************************************/
     Encryption *encryptionWindow = new Encryption();
     encryptionWindow->show();
-    this->close();
+    //destruct the current window to prevent memory leaks
+    this->~Menu();
 }
 
 void Menu::openDecryptionWindow(){
@@ -58,5 +61,6 @@ void Menu::openDecryptionWindow(){
 ***********************************************************************/
     Decryption *decryptionWindow = new Decryption();
     decryptionWindow->show();
-    this->close();
+    //destruct the current window to prevent memory leaks
+    this->~Menu();
 }

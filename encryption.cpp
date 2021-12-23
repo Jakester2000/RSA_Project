@@ -73,9 +73,10 @@ void Encryption::loadMenu(){
 /***********************************************************************
 * Closes the current window widget and loads the menu.
 ***********************************************************************/
-    Menu *w = new Menu;
-    this->close();
-    w->show();
+    Menu *menuWindow = new Menu;
+    this->~Encryption();
+    //destruct the current window to prevent memory leaks
+    menuWindow->show();
 }
 
 void Encryption::addHomeButtonToToolbar(){
@@ -100,12 +101,12 @@ void Encryption::connectButtons(){
 * - PublicKeyButton connected to the selectPublicKey function
 * - FileToEncryptButton connected to the selectFileToEncrypt function
 * - OutputButton connected to the selectOutputFilepath function
-* - GoButton connected to the goButton function
+* - GoButton connected to the encrypt function
 ***********************************************************************/
     connect(ui->PublicKeyButton, &QPushButton::released, this, &Encryption::selectPublicKey);
     connect(ui->FileToEncryptButton, &QPushButton::released, this, &Encryption::selectFileToEncrypt);
     connect(ui->OutputButton, &QPushButton::released, this, &Encryption::selectOutputFilepath);
-    connect(ui->GoButton, &QPushButton::released, this, &Encryption::goButton);
+    connect(ui->GoButton, &QPushButton::released, this, &Encryption::encrypt);
 
 }
 
@@ -295,16 +296,22 @@ void Encryption::setOutputFilepathLabel(bool outputFilepathSelected){
 std::string Encryption::readFromFile(){
 /***********************************************************************
 * This function reads all of the text from a file, using a buffer stream.
-* No validation checks are needed here as they are all done by another function.
 *
 * Returns:
 *  strStream.str(): the text content from the file returned as a string.
 ***********************************************************************/
-    std::ifstream inFile;
-    inFile.open(inputFilepath);
-    std::stringstream strStream;
-    strStream << inFile.rdbuf();
-    return strStream.str();
+    try {
+        std::ifstream inFile;
+        inFile.open(inputFilepath);
+        std::stringstream strStream;
+        strStream << inFile.rdbuf();
+        return strStream.str();
+    }
+    catch(const std::exception &e){
+        Encryption::outputErrorMessage("Error!", "ERROR: Error when reading from file");
+        // Goes back to the Menu window to prevent any errors carrying forward in this class.
+        Encryption::loadMenu();
+    }
 }
 
 publicKey Encryption::loadPublicKey(publicKey publicKeyStruct){
@@ -318,31 +325,37 @@ publicKey Encryption::loadPublicKey(publicKey publicKeyStruct){
 * Returns:
 *  privateKeyStruct: The privateKey structure once the values have been assigned from the .pem file.
 ***********************************************************************/
-    CryptoPP::FileSource publicKeySource(publicKeyFilepath.c_str(), true);
-    CryptoPP::RSA::PublicKey cryptoPublicKey;
-    CryptoPP::PEM_Load(publicKeySource, cryptoPublicKey);
+    try {
+        CryptoPP::FileSource publicKeySource(publicKeyFilepath.c_str(), true);
+        CryptoPP::RSA::PublicKey cryptoPublicKey;
+        CryptoPP::PEM_Load(publicKeySource, cryptoPublicKey);
 
-    CryptoPP::Integer cryptoPublicKeyExponent = cryptoPublicKey.GetPublicExponent();
-    CryptoPP::Integer cryptoPublicKeyModulus = cryptoPublicKey.GetModulus();
+        CryptoPP::Integer cryptoPublicKeyExponent = cryptoPublicKey.GetPublicExponent();
+        CryptoPP::Integer cryptoPublicKeyModulus = cryptoPublicKey.GetModulus();
 
-    std::ostringstream exponentStream;
-    std::ostringstream modulusStream;
+        std::ostringstream exponentStream;
+        std::ostringstream modulusStream;
 
-    exponentStream << cryptoPublicKeyExponent;
-    modulusStream << cryptoPublicKeyModulus;
-    std::string exponentString = exponentStream.str();
-    std::string modulusString = modulusStream.str();
+        exponentStream << cryptoPublicKeyExponent;
+        modulusStream << cryptoPublicKeyModulus;
+        std::string exponentString = exponentStream.str();
+        std::string modulusString = modulusStream.str();
 
-    exponentString.pop_back();
-    modulusString.pop_back();
+        exponentString.pop_back();
+        modulusString.pop_back();
 
-    mpz_set_str(publicKeyStruct.publicExponent, exponentString.c_str(), 10);
-    mpz_set_str(publicKeyStruct.modulus, modulusString.c_str(), 10);
-
-    return publicKeyStruct;
+        mpz_set_str(publicKeyStruct.publicExponent, exponentString.c_str(), 10);
+        mpz_set_str(publicKeyStruct.modulus, modulusString.c_str(), 10);
+        return publicKeyStruct;
+    }
+    catch (const std::exception &e){
+        Encryption::outputErrorMessage("Error!", "ERROR: Error when reading PEM file");
+        // Goes back to the Menu window to prevent any errors carrying forward in this class.
+        Encryption::loadMenu();
+    }
 }
 
-void Encryption::goButton(){
+void Encryption::encrypt(){
 /***********************************************************************
 * This function is run when the go button is clicked by the user.
 * It essentially calls the other functions in the correct order, with some

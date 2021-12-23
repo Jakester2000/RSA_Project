@@ -70,9 +70,10 @@ void Decryption::loadMenu(){
 /***********************************************************************
 * Closes the current window widget and loads the menu.
 ***********************************************************************/
-    Menu *w = new Menu;
-    this->close();
-    w->show();
+    Menu *menuWindow = new Menu;
+    this->~Decryption();
+    //destruct the current window to prevent memory leaks
+    menuWindow->show();
 }
 
 void Decryption::addHomeButtonToToolbar(){
@@ -97,12 +98,12 @@ void Decryption::connectButtons(){
 * - PrivateKeyButton connected to the selectPrivateKey function
 * - FileToDecryptButton connected to the selectFileToDecrypt function
 * - OutputButton connected to the selectOutputFilepath function
-* - GoButton connected to the goButton function
+* - GoButton connected to the decrypt function
 ***********************************************************************/
     connect(ui->PrivateKeyButton, &QPushButton::released, this, &Decryption::selectPrivateKey);
     connect(ui->FileToDecryptButton, &QPushButton::released, this, &Decryption::selectFileToDecrypt);
     connect(ui->OutputButton, &QPushButton::released, this, &Decryption::selectOutputFilepath);
-    connect(ui->GoButton, &QPushButton::released, this, &Decryption::goButton);
+    connect(ui->GoButton, &QPushButton::released, this, &Decryption::decrypt);
 }
 
 bool Decryption::checkUserInput(){
@@ -299,35 +300,43 @@ privateKey Decryption::loadPrivateKey(privateKey privateKeyStruct){
 * Returns:
 *  privateKeyStruct: The privateKey structure once the values have been assigned from the .pem file.
 ***********************************************************************/
-    CryptoPP::FileSource privateKeySource(privateKeyFilepath.c_str(), true);
-    CryptoPP::RSA::PrivateKey cryptoPrivateKey;
-    CryptoPP::PEM_Load(privateKeySource, cryptoPrivateKey);
+    try {
+        CryptoPP::FileSource privateKeySource(privateKeyFilepath.c_str(), true);
+        CryptoPP::RSA::PrivateKey cryptoPrivateKey;
+        CryptoPP::PEM_Load(privateKeySource, cryptoPrivateKey);
 
-    CryptoPP::Integer privateExponent = cryptoPrivateKey.GetPrivateExponent();
-    CryptoPP::Integer modulus = cryptoPrivateKey.GetModulus();
+        CryptoPP::Integer privateExponent = cryptoPrivateKey.GetPrivateExponent();
+        CryptoPP::Integer modulus = cryptoPrivateKey.GetModulus();
 
-    std::string privateExponentString;
-    std::ostringstream privateExponentStream;
-    privateExponentStream << privateExponent;
-    privateExponentString = privateExponentStream.str();
-    // The privateExponentString ends in a full-stop ('.') char, therefore we pop_back the string to remove the last character.
-    privateExponentString.pop_back();
+        std::string privateExponentString;
+        std::ostringstream privateExponentStream;
+        privateExponentStream << privateExponent;
+        privateExponentString = privateExponentStream.str();
+        // The privateExponentString ends in a full-stop ('.') char, therefore we pop_back the string to remove the last character.
+        privateExponentString.pop_back();
 
-    std::string modulusString;
-    std::ostringstream modulusStream;
-    modulusStream << modulus;
-    modulusString = modulusStream.str();
-    // The modulusString ends in a full-stop ('.') char, therefore we pop_back the string to remove the last character.
-    modulusString.pop_back();
+        std::string modulusString;
+        std::ostringstream modulusStream;
+        modulusStream << modulus;
+        modulusString = modulusStream.str();
+        // The modulusString ends in a full-stop ('.') char, therefore we pop_back the string to remove the last character.
+        modulusString.pop_back();
 
-    mpz_set_str(privateKeyStruct.privateExponent, privateExponentString.c_str(), 10);
-    mpz_set_str(privateKeyStruct.modulus, modulusString.c_str(), 10);
+        mpz_set_str(privateKeyStruct.privateExponent, privateExponentString.c_str(), 10);
+        mpz_set_str(privateKeyStruct.modulus, modulusString.c_str(), 10);
 
-    return privateKeyStruct;
+        return privateKeyStruct;
+    }
+    catch (std::exception &e) {
+        Decryption::outputErrorMessage("Error!", "ERROR: Error when reading PEM file");
+        // Goes back to the Menu window to prevent any errors carrying forward in this class.
+        Decryption::loadMenu();
+    }
+
 }
 
 
-void Decryption::goButton(){
+void Decryption::decrypt(){
 /***********************************************************************
 * This function is run when the go button is clicked by the user.
 * It essentially calls the other functions in the correct order, with some
@@ -412,15 +421,21 @@ void Decryption::decryptBlock(std::string blockToDecrypt, privateKey privateKeyS
 std::string Decryption::readFromFile(){
 /***********************************************************************
 * This function reads all of the text from a file, using a buffer stream.
-* No validation checks are needed here as they are all done by another function.
 *
 * Returns:
 *  bufferStream.str(): the text content from the file returned as a string.
 ***********************************************************************/
-    std::ifstream inputFileStream(encryptedFilepath);
-    std::stringstream bufferStream;
-    bufferStream << inputFileStream.rdbuf();
-    return bufferStream.str();
+    try {
+        std::ifstream inputFileStream(encryptedFilepath);
+        std::stringstream bufferStream;
+        bufferStream << inputFileStream.rdbuf();
+        return bufferStream.str();
+    }
+    catch(const std::exception &e){
+        Decryption::outputErrorMessage("Error!", "ERROR: Error when reading from file");
+        // Goes back to the Menu window to prevent any errors carrying forward in this class.
+        Decryption::loadMenu();
+    }
 }
 
 void Decryption::writeDecryptedTextToFile(){
@@ -428,10 +443,17 @@ void Decryption::writeDecryptedTextToFile(){
 * A function which writes the global variable decryptedString into a file
 * at the location of the contents of global variable outputFilepath.
 ***********************************************************************/
-    std::ofstream outputFileStream;
-    outputFileStream.open (outputFilepath);
-    outputFileStream << decryptedString;
-    outputFileStream.close();
+    try {
+        std::ofstream outputFileStream;
+        outputFileStream.open (outputFilepath);
+        outputFileStream << decryptedString;
+        outputFileStream.close();
+    }
+    catch (const std::exception &e){
+        Decryption::outputErrorMessage("Error!", "ERROR: Error when writing to file");
+        // Goes back to the Menu window to prevent any errors carrying forward in this class.
+        Decryption::loadMenu();
+    }
 }
 
 void Decryption::addLeadingZeros(std::string &binaryString){
@@ -495,5 +517,4 @@ void Decryption::resetWindow(){
     Decryption::setKeyLabel(false);
     Decryption::setFilepathLabel(false);
     Decryption::setOutputFilepathLabel(false);
-    return;
 }

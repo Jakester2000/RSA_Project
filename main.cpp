@@ -7,8 +7,8 @@ int main(int argc, char *argv[]){
 /***********************************************************************
 * Creates an instance of the Menu class, executes and shows the main window.
 ***********************************************************************/
-    QApplication a(argc, argv);
-    Menu w;
-    w.show();
-    return a.exec();
+    QApplication application(argc, argv);
+    Menu menuWindow;
+    menuWindow.show();
+    return application.exec();
 }

@@ -38,7 +38,7 @@ private:
     std::string readFromFile();
 
     publicKey loadPublicKey(publicKey publicKeyStruct);
-    void goButton();
+    void encrypt();
     void encryptString(std::string stringToEncrypt, publicKey publicKeyStruct);
     void encryptBlock(std::string blockToEncrypt, publicKey publicKeyStruct);
     void writeEncryptedTextToFile();

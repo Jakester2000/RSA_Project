@@ -137,10 +137,10 @@ void KeyGeneration::connectButtons(){
 /***********************************************************************
 * Connects each button to their respective functions:
 * - SelectFilepathButton connected to FilepathButton function
-* - GoButton connected to goButton funtion
+* - goButton connected to generateKeys funtion
 ***********************************************************************/
     connect(ui->SelectFilepathButton, &QPushButton::released, this, &KeyGeneration::filepathButton);
-    connect(ui->goButton, &QPushButton::released, this, &KeyGeneration::goButton);
+    connect(ui->goButton, &QPushButton::released, this, &KeyGeneration::generateKeys);
 }
 
 bool KeyGeneration::checkUserInput(){
@@ -164,21 +164,30 @@ bool KeyGeneration::checkUserInput(){
         return false;
     }
     else{
-        int dropDownValueInt = ui->KeySizeComboBox->currentText().toInt();
-        SIZE_OF_KEY = dropDownValueInt;
-        SIZE_OF_PRIMES = SIZE_OF_KEY / 2;
-        BUFFER_SIZE = SIZE_OF_KEY / 16;
+        // This else statement indicates that the validation checks have passed.
+        KeyGeneration::setGlobalVariables();
+        return true;
     }
-    return true;
+}
+
+void KeyGeneration::setGlobalVariables(){
+/***********************************************************************
+* Sets the values of the KeySize to the users input, and updates all related variables.
+***********************************************************************/
+    int dropDownValueInt = ui->KeySizeComboBox->currentText().toInt();
+    SIZE_OF_KEY = dropDownValueInt;
+    SIZE_OF_PRIMES = SIZE_OF_KEY / 2;
+    BUFFER_SIZE = SIZE_OF_KEY / 16;
 }
 
 void KeyGeneration::loadMenu(){
 /***********************************************************************
 * Closes the current window widget and loads the menu.
 ***********************************************************************/
-    Menu *w = new Menu;
-    this->close();
-    w->show();
+    Menu *menuWindow = new Menu;
+    this->~KeyGeneration();
+    //destruct the current window to prevent memory leaks
+    menuWindow->show();
 }
 
 
@@ -208,7 +217,7 @@ void KeyGeneration::filepathButton(){
     }
 }
 
-void KeyGeneration::goButton(){
+void KeyGeneration::generateKeys(){
 /***********************************************************************
 * This is the function that gets run when the button on the UI gets pressed.
 * It validates that a keySize has been chosen by the user, and if the check passes
@@ -428,14 +437,25 @@ void KeyGeneration::savePublicKeyToPEMFile(publicKey* publicKeyStruct){
 * Arguments:
 * @ publicKeyStruct: The structure which contains the values needed for a RSA public Key
 ***********************************************************************/
-    CryptoPP::RSA::PublicKey *cryptoPublicKey = new CryptoPP::RSA::PublicKey;
-    CryptoPP::Integer cryptoModulus(mpz_get_str(NULL, 10, publicKeyStruct->modulus));
-    cryptoPublicKey->SetModulus(cryptoModulus);
-    CryptoPP::Integer cryptoPublicExponent(mpz_get_str(NULL, 10, publicKeyStruct->publicExponent));
-    cryptoPublicKey->SetPublicExponent(cryptoPublicExponent);
+    try {
+        CryptoPP::RSA::PublicKey *cryptoPublicKey = new CryptoPP::RSA::PublicKey;
+        CryptoPP::Integer cryptoModulus(mpz_get_str(NULL, 10, publicKeyStruct->modulus));
+        cryptoPublicKey->SetModulus(cryptoModulus);
+        CryptoPP::Integer cryptoPublicExponent(mpz_get_str(NULL, 10, publicKeyStruct->publicExponent));
+        cryptoPublicKey->SetPublicExponent(cryptoPublicExponent);
 
-    CryptoPP::FileSink file((KeyFilepath + "/PublicKey.pem").c_str(), true);
-    CryptoPP::PEM_Save(file, *cryptoPublicKey);
+        CryptoPP::FileSink file((KeyFilepath + "/PublicKey.pem").c_str(), true);
+        CryptoPP::PEM_Save(file, *cryptoPublicKey);
+
+        delete cryptoPublicKey;
+        // deleting the cryptoPublicKey frees the memory, preventing a memory leak
+    }
+    catch (std::exception &e) {
+        KeyGeneration::outputErrorMessage("Error!", "ERROR: Error when writing PEM file");
+        // Goes back to the Menu window to prevent any errors carrying forward in this class.
+        KeyGeneration::loadMenu();
+    }
+
 }
 
 void KeyGeneration::savePrivateKeyToPEMFile(privateKey* privateKeyStruct){
@@ -454,20 +474,29 @@ void KeyGeneration::savePrivateKeyToPEMFile(privateKey* privateKeyStruct){
 * Arguments:
 * @ privateKeyStruct: The structure which contains the values needed for a RSA private Key
 ***********************************************************************/
-    CryptoPP::RSA::PrivateKey *cryptoPrivateKey = new CryptoPP::RSA::PrivateKey;
-    CryptoPP::Integer cryptoModulus(mpz_get_str(NULL, 10, privateKeyStruct->modulus));
-    cryptoPrivateKey->SetModulus(cryptoModulus);
-    CryptoPP::Integer cryptoPublicExponent(mpz_get_str(NULL, 10, privateKeyStruct->publicExponent));
-    cryptoPrivateKey->SetPublicExponent(cryptoPublicExponent);
-    CryptoPP::Integer cryptoPrivateExponent(mpz_get_str(NULL, 10, privateKeyStruct->privateExponent));
-    cryptoPrivateKey->SetPrivateExponent(cryptoPrivateExponent);
-    CryptoPP::Integer cryptoPrime1(mpz_get_str(NULL, 10, privateKeyStruct->prime1));
-    cryptoPrivateKey->SetPrime1(cryptoPrime1);
-    CryptoPP::Integer cryptoPrime2(mpz_get_str(NULL, 10, privateKeyStruct->prime2));
-    cryptoPrivateKey->SetPrime2(cryptoPrime2);
+    try {
+        CryptoPP::RSA::PrivateKey *cryptoPrivateKey = new CryptoPP::RSA::PrivateKey;
+        CryptoPP::Integer cryptoModulus(mpz_get_str(NULL, 10, privateKeyStruct->modulus));
+        cryptoPrivateKey->SetModulus(cryptoModulus);
+        CryptoPP::Integer cryptoPublicExponent(mpz_get_str(NULL, 10, privateKeyStruct->publicExponent));
+        cryptoPrivateKey->SetPublicExponent(cryptoPublicExponent);
+        CryptoPP::Integer cryptoPrivateExponent(mpz_get_str(NULL, 10, privateKeyStruct->privateExponent));
+        cryptoPrivateKey->SetPrivateExponent(cryptoPrivateExponent);
+        CryptoPP::Integer cryptoPrime1(mpz_get_str(NULL, 10, privateKeyStruct->prime1));
+        cryptoPrivateKey->SetPrime1(cryptoPrime1);
+        CryptoPP::Integer cryptoPrime2(mpz_get_str(NULL, 10, privateKeyStruct->prime2));
+        cryptoPrivateKey->SetPrime2(cryptoPrime2);
 
-    CryptoPP::FileSink file((KeyFilepath + "/PrivateKey.pem").c_str(), true);
-    CryptoPP::PEM_Save(file, *cryptoPrivateKey);
+        CryptoPP::FileSink file((KeyFilepath + "/PrivateKey.pem").c_str(), true);
+        CryptoPP::PEM_Save(file, *cryptoPrivateKey);
+        delete cryptoPrivateKey;
+        // deleting the cryptoPrivateKey frees the memory, preventing a memory leak
+    }
+    catch (std::exception &e) {
+        KeyGeneration::outputErrorMessage("Error!", "ERROR: Error when writing PEM file");
+        // Goes back to the Menu window to prevent any errors carrying forward in this class.
+        KeyGeneration::loadMenu();
+    }
 }
 
 void KeyGeneration::outputErrorMessage(std::string windowHeader, std::string messageContent){

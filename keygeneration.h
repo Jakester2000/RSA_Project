@@ -40,9 +40,10 @@ private:
     privateKey initializePrivateKey();
     void connectButtons();
     bool checkUserInput();
+    void setGlobalVariables();
     void loadMenu();
     void filepathButton();
-    void goButton();
+    void generateKeys();
     void generatePublicKey(publicKey* publicKeyStruct, privateKey* privateKeyStruct);
     void generatePrivateKey(privateKey* privateKeyStruct);
     std::string generateRandomNumber();

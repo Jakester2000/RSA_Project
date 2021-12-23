@@ -37,7 +37,7 @@ private:
     void setOutputFilepathLabel(bool outputFilepathSelected);
 
     privateKey loadPrivateKey(privateKey privateKeyStruct);
-    void goButton();
+    void decrypt();
     void decryptString(std::string stringToDecrypt, privateKey privateKeyStruct);
     void decryptBlock(std::string blockToDecrypt, privateKey privateKeyStruct);
     std::string readFromFile();
